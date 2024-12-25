@@ -1,25 +1,7 @@
-__version__ = '0.1'
 __author__ = 'Tobia Petrolini'
+__file__ = 'elements.py'
 
 from equations import *
-
-def sympy_value(value, name: str = 'value') -> sp.Expr:
-    if isinstance(value, int):
-        value = sp.simplify(sp.Integer(value))
-    elif isinstance(value, sp.Integer):
-        value = sp.simplify(value)
-    elif isinstance(value, float):
-        value = sp.simplify(sp.Rational(value))
-    elif isinstance(value, sp.Rational):
-        value = sp.simplify(value)
-    elif isinstance(value, sp.Expr):
-        pass
-    elif isinstance(value, str):
-        value = read_expression(value)
-    else:
-        raise ValueError(f"{name} must be an integer, float, Rational, Expr or str")
-    
-    return value
 
 class Point():
     
@@ -47,12 +29,6 @@ class Point():
     
     def isorigin(self) -> bool:
         return float(self.x) == 0 and float(self.y) == 0
-    
-    def isonXaxe(self) -> bool:
-        return float(self.y) == 0
-    
-    def isonYaxe(self) -> bool:
-        return float(self.x) == 0
         
     def distancePoint(self, point: 'Point') -> sp.Expr:
         return sp.sqrt((self.x - point.x)**2 + (self.y - point.y)**2)
@@ -64,9 +40,14 @@ class Point():
         if isinstance(element, Point):
             return element.cordinates == self.cordinates
         elif isinstance(element, Line):
-            return sp.simplify(f'{self.y} - ({element.slope} * {self.x} + {element.intercept})') == 0
+            return sp.simplify(element.a * self.x + element.b * self.y + element.c) == 0
+        elif isinstance(element, Segment):
+            min_x = min(element.point1.x, element.point2.x)
+            max_x = max(element.point1.x, element.point2.x)
+            min_y = min(element.point1.y, element.point2.y)
+            max_y = max(element.point1.y, element.point2.y)
+            return self.ison(element.line) and (self.x >= min_x and self.x <= max_x) and (self.y >= min_y and self.y <= max_y)
             
-
 ORIGIN = Point(sp.Integer(0), sp.Integer(0))
 
 class Line():
@@ -83,12 +64,11 @@ class Line():
         if 'y' in str(self.equation):
             self.equation = sp.Eq(expression('y'), expression(str(sp.solve(self.equation, 'y')[0])))
 
-            # Ensure directEquation maintains integers when possible
             lhs, rhs = self.equation.lhs, self.equation.rhs
             lcm_denoms = sp.lcm([term.as_numer_denom()[1] for term in (lhs - rhs).as_ordered_terms()])
             scaled_lhs = (lhs - rhs) * lcm_denoms
 
-            self.directEquation = sp.Eq(scaled_lhs.simplify(), 0)
+            self.implicitEquation = sp.Eq(scaled_lhs.simplify(), 0)
             
             self.slope = sp.simplify(sp.diff(self.equation.rhs, sp.Symbol('x')))
             
@@ -96,25 +76,25 @@ class Line():
 
             x, y = sp.symbols('x y')
 
-            self.a = self.directEquation.lhs.as_coefficients_dict().get(x, 0)
-            self.b = self.directEquation.lhs.as_coefficients_dict().get(y, 0)
-            self.c = self.directEquation.lhs.as_coefficients_dict().get(1, 0)
+            self.a = self.implicitEquation.lhs.as_coefficients_dict().get(x, 0)
+            self.b = self.implicitEquation.lhs.as_coefficients_dict().get(y, 0)
+            self.c = self.implicitEquation.lhs.as_coefficients_dict().get(1, 0)
 
         else:
             self.equation = sp.Eq(expression('x'), expression(str(sp.solve(self.equation, 'x')[0])))
             
-            # Ensure directEquation maintains integers when possible
+            # Ensure implicitEquation maintains integers when possible
             lhs, rhs = self.equation.lhs, self.equation.rhs
             lcm_denoms = sp.lcm([term.as_numer_denom()[1] for term in (lhs - rhs).as_ordered_terms()])
             scaled_lhs = (lhs - rhs) * lcm_denoms
 
-            self.directEquation = sp.Eq(scaled_lhs.simplify(), 0)
+            self.implicitEquation = sp.Eq(scaled_lhs.simplify(), 0)
 
             x = sp.symbols('x')
 
-            self.a = self.directEquation.lhs.as_coefficients_dict().get(x, 0)
+            self.a = self.implicitEquation.lhs.as_coefficients_dict().get(x, 0)
             self.b = sp.Integer(0)
-            self.c = self.directEquation.lhs.as_coefficients_dict().get(1, 0)
+            self.c = self.implicitEquation.lhs.as_coefficients_dict().get(1, 0)
 
             self.slope = sp.oo
             self.intercept = None
@@ -122,10 +102,10 @@ class Line():
     def __str__(self) -> str:
         return f'{self.equation.lhs} = {self.equation.rhs}'
     
-    def isXaxe(self) -> bool:
+    def isHorizontal(self) -> bool:
         return self.slope == 0
     
-    def isYaxe(self) -> bool:
+    def isVertical(self) -> bool:
         return self.slope == sp.oo
 
     def isParallel(self, line: 'Line') -> bool:
@@ -133,70 +113,139 @@ class Line():
     
     def isPerpendicular(self, line: 'Line') -> bool:
         return self.slope * line.slope == -1
-
-    def isAxe(self) -> bool:
-        ...
-
-    def isBisector(self) -> bool:
-        ...
-
-    def isMedian(self) -> bool:
-        ...
-
-
-BISECTOR1_3 = Line(equation('y = x'))
-BISECTOR2_4 = Line(equation('y = -x'))
     
-def findLine(Point1: Point = None, Point2: Point = None , slope = None, intercept = None, isvertical: bool = False) -> Line:
+    def intersection(self, line: 'Line') -> Point:
+        x, y = sp.symbols('x y')
+        sol = sp.solve([self.equation, line.equation], (x, y))
+        return Point(sol[x], sol[y])
+
+    def isAxe(self, segment: 'Segment') -> bool:
+        return str(self.equation) == str(segment.axe.equation)
+            
+    def isBisector(self, line1: 'Line', line2: 'Line') -> bool:
+        intersection_point = line1.intersection(line2)
+
+        test_point = Point(intersection_point.x + 1, intersection_point.y + self.slope) if not self.isVertical() else Point(intersection_point.x, intersection_point.y + 1)
+
+        distance_to_line1 = test_point.distanceLine(line1)
+        distance_to_line2 = test_point.distanceLine(line2)
+
+        return sp.simplify(distance_to_line1 - distance_to_line2) == 0
+
+    def findParallel(self, point: Point) -> 'Line':
+        if self.isVertical():
+            return Line(sp.Eq(expression('x'), point.x))
+        else:
+            intercept = point.y - self.slope * point.x
+            return Line(sp.Eq(expression('y'), self.slope * expression('x') + intercept))
+
+    def findPerpendicular(self, point: Point) -> 'Line':
+        if self.isVertical():
+            return Line(sp.Eq(expression('y'), point.y))
+        elif self.isHorizontal():
+            return Line(sp.Eq(expression('x'), point.x))
+        else:
+            perpendicular_slope = -1 / self.slope
+            intercept = point.y - perpendicular_slope * point.x
+            return Line(sp.Eq(expression('y'), perpendicular_slope * expression('x') + intercept))
+
+    def findBisector(self, line: 'Line') -> tuple['Line', 'Line']:
+        x, y = sp.symbols('x y')
+
+        distance_self = (self.a * x + self.b * y + self.c) / sp.sqrt(self.a**2 + self.b**2)
+        distance_line = (line.a * x + line.b * y + line.c) / sp.sqrt(line.a**2 + line.b**2)
+
+        eq1 = sp.Eq(distance_self, distance_line)
+        eq2 = sp.Eq(distance_self, -distance_line)
+
+        if not self.isVertical():
+            solutions1 = sp.solve(eq1, y)
+            solutions2 = sp.solve(eq2, y)
+            solutions = solutions1 + solutions2
+        else:
+            solutions1 = sp.solve(eq1, x)
+            solutions2 = sp.solve(eq2, x)
+            solutions = solutions1 + solutions2
+
+        if len(solutions) == 2:
+            line1 = Line(sp.Eq(y, solutions[0])) if not self.isVertical() else Line(sp.Eq(x, solutions[0]))
+            line2 = Line(sp.Eq(y, solutions[1])) if not self.isVertical() else Line(sp.Eq(x, solutions[1]))
+            return line1, line2
+        else:
+            return Line(sp.Eq(y, solutions[0])) if not self.isVertical() else Line(sp.Eq(x, solutions[0]), None)
+
+
+X_AXE = Line(equation('y = 0'))
+Y_AXE = Line(equation('x = 0'))
+BISECTOR_1_3 = Line(equation('y = x'))
+BISECTOR_2_4 = Line(equation('y = -x'))
+    
+def findLine(point1: Point | None = None, point2:  Point | None = None , slope = None, intercept = None) -> Line:
+    isvertical = False
+    try:
+        if slope == sp.oo or point1.x == point2.x:
+            isvertical = True
+    except:
+        pass
+
     if intercept is not None:
         intercept = sympy_value(intercept, 'intercept')
 
     if isvertical:
-        if Point1 is not None and Point2 is not None:
-            pass
-        elif Point1 is not None and intercept is not None:
-            Point2 = Point(intercept, 0)
-        elif Point2 is not None and intercept is not None:
-            Point1 = Point(intercept, 0)
+        if point1 is not None:
+            return Line(sp.Eq(expression('x'), point1.x))
+        elif point2 is not None:
+            return Line(sp.Eq(expression('x'), point2.x))
+        elif intercept is not None:
+            return Line(sp.Eq(expression('x'), intercept))
         else:
-            raise ValueError("Two of the three parameters (Point1, Point2, intercept) must be provided")
+            raise ValueError("One of the three parameter (point1, Pont2, intercept) must be given")
         
-        return Line(sp.Eq(expression('x'), Point1.x))
     else:
         if slope is not None:
             slope = sympy_value(slope, 'slope')
 
-        if Point1 is not None and Point2 is not None:
-            if Point1.x == Point2.x:
-                return Line(sp.Eq(expression('x'), Point1.x))
-            else:
-                slope = (Point2.y - Point1.y) / (Point2.x - Point1.x)
-                intercept = Point1.y - slope * Point1.x
-        elif Point1 is not None and slope is not None:
-            intercept = Point1.y - slope * Point1.x
-        elif Point1 is not None and intercept is not None:
-            slope = (Point1.y - intercept) / Point1.x
-        elif Point2 is not None and slope is not None:
-            intercept = Point2.y - slope * Point2.x
-        elif Point2 is not None and intercept is not None:
-            slope = (Point2.y - intercept) / Point2.x
+        if point1 is not None and point2 is not None:
+            slope = (point2.y - point1.y) / (point2.x - point1.x)
+            intercept = point1.y - slope * point1.x
+        elif point1 is not None and slope is not None:
+            intercept = point1.y - slope * point1.x
+        elif point1 is not None and intercept is not None:
+            slope = (point1.y - intercept) / point1.x
+        elif point2 is not None and slope is not None:
+            intercept = point2.y - slope * point2.x
+        elif point2 is not None and intercept is not None:
+            slope = (point2.y - intercept) / point2.x
+        elif slope is not None and intercept is not None:
+            pass
         else:
             raise ValueError("Two of the four parameter must be given")
 
-    return Line(sp.Eq(expression('y'), slope*expression('x') + intercept)) ### DA SISTEMARE
+    return Line(sp.Eq(expression('y'), slope*expression('x') + intercept))
 
 class Segment:
 
-    def __init__(self, Point1: Point, Point2: Point):
-        self.Point1 = Point1
-        self.Point2 = Point2
+    def __init__(self, point1: Point, point2: Point):
+        self.point1 = point1
+        self.point2 = point2
 
-        self.length = sp.sqrt((self.Point2.x - self.Point1.x)**2 + (self.Point2.y - self.Point1.y)**2)
+        self.length = self.point1.distancePoint(self.point2)
 
-        self.middle = Point((self.Point1.x + self.Point2.x) / 2, (self.Point1.y + self.Point2.y) / 2)
+        self.middle = Point((self.point1.x + self.point2.x) / 2, (self.point1.y + self.point2.y) / 2)
 
-    def line(self) -> Line:
-        return findLine(self.Point1, self.Point2)
+        self.line = findLine(self.point1, self.point2)
 
+        self.axe = self.line.findPerpendicular(self.middle)
 
+def findPoint(line: Line, point: Point, distance) -> tuple[Point, Point]:
+    if point.ison(line):
+        distance = sympy_value(distance, 'distance')
 
+        equation1 = equation('(x - p)**2 + (y - q)**2 = d**2').subs('p', point.x).subs('q', point.y).subs('d', distance)
+
+        x, y = sp.symbols('x y')
+        sol = sp.solve([equation1, line.equation], (x, y))
+        
+        return Point(sol[0][0], sol[0][1]), Point(sol[1][0], sol[1][1])
+    else:
+        raise ValueError("The point must be on the line")

@@ -1,8 +1,22 @@
-__version__ = '0.1'
 __author__ = 'Tobia Petrolini'
+__file__ = 'equaions.py'
 
 import re
 import sympy as sp
+
+def sympy_value(value, name: str = 'value') -> sp.Expr:
+    if isinstance(value, int):
+        value = sp.simplify(sp.Integer(value))
+    elif isinstance(value, float):
+        value = sp.simplify(sp.Rational(value))
+    elif isinstance(value, sp.Expr):
+        pass
+    elif isinstance(value, str):
+        value = read_expression(value)
+    else:
+        raise ValueError(f"{name} must be an integer, float, Rational, Expr or str")
+    
+    return value
 
 def format_expression(expression: str, lower: bool = True) -> str:
     # Mapping of mathematical functions to Chinese characters
