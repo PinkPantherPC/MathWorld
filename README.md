@@ -316,20 +316,6 @@ Raises:
     ValueError: If sufficient parameters are not provided.
 ```
 
-### Example
-
-```python
-from mathworld import Point, findLine
-
-# Create two Point objects to define a line
-pointA = Point(1, 1)   # First point at (1, 1)
-pointB = Point(4, 3)   # Second point at (4, 3)
-
-# Using findLine with two points to create a line equation
-line_eq = findLine(pointA, pointB)
-print(line_eq)  # Expected output: y = 2*x/3 + 1/3
-```
-
 ### `findPoint(line, point, distance) -> tuple[Point, Point]`
 
 ```python
@@ -347,10 +333,18 @@ Raises:
     ValueError: If the reference point is not on the line.
 ```
 
-### Example
+### Examples
 
 ```python
-from mathworld import Point, findLine
+from mathworld import Point, Line, findLine, findPoint
+
+# Create two Point objects to define a line
+pointA = Point(1, 1)   # First point at (1, 1)
+pointB = Point(4, 3)   # Second point at (4, 3)
+
+# Using findLine with two points to create a line equation
+line_eq = findLine(pointA, pointB)
+print(line_eq)  # Expected output: y = 2*x/3 + 1/3
 
 pointA = Point(3, 2)
 line = Line('y = -x + 5')
