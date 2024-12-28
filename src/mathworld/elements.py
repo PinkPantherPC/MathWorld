@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 __author__ = 'Tobia Petrolini'
 __file__ = 'elements.py'
 
