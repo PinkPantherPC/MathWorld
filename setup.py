@@ -1,11 +1,11 @@
 from setuptools import setup, find_packages
 
-with open("README.md", "r", encoding="utf-8") as documentation:
-    long_description = documentation.read()
+with open("README.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
 
 setup(
     name="mathworld",
-    version="0.1.0",
+    version="0.1.1",
     description="A python module for using sympy with analytic geometry",
     long_description=long_description,
     long_description_content_type="text/markdown",

@@ -10,7 +10,7 @@ def sympy_value(value, name: str = 'value') -> sp.Expr:
     Convert a value into a sympy expression.
 
     Args:
-        value (int, float, str, sp.Expr): The value to convert.
+        value (int | float | str | sp.Expr): The value to convert.
         name (str): A name used in error messages.
 
     Returns:
@@ -22,7 +22,7 @@ def sympy_value(value, name: str = 'value') -> sp.Expr:
     if isinstance(value, int):
         value = sp.simplify(sp.Integer(value))
     elif isinstance(value, float):
-        value = sp.simplify(sp.Rational(value))
+        value = sp.simplify(sp.Rational(str(value)))
     elif isinstance(value, sp.Expr):
         pass
     elif isinstance(value, str):

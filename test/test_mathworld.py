@@ -1,5 +1,5 @@
 import pytest
-from mathworld import Point, Line, Segment, findLine, findPoint, sp
+from mathworld import Point, Line, Segment, sp
 
 
 def test_point():
@@ -19,11 +19,20 @@ def test_point():
     assert p1.ison(segment)
     assert not p2.ison(segment)
 
+    p1 = Point(1, 2)
+    p2 = Point(3, 4)
+
+    distance = sp.sqrt(2)
+    new_points = Point.findPoint(line, p1, distance)
+    assert len(new_points) == 2
+    for p in new_points:
+        assert p.distancePoint(p1) == distance
+
 
 def test_line():
     # Test Line class
     line1 = Line("y = 2*x + 3")
-    line2 = Line("y = -0.5*x - 2")
+    line2 = Line("y = -1*x/2 - 2")
 
     assert line1.isHorizontal() is False
     assert line2.isVertical() is False
@@ -33,6 +42,13 @@ def test_line():
     intersection = line1.intersection(line2)
     assert intersection.x == sp.Integer(
         -2) and intersection.y == sp.Integer(-1)
+
+    p1 = Point(1, 2)
+    p2 = Point(3, 4)
+
+    line = Line.findLine(p1, p2)
+    assert line.slope == sp.Rational(2, 2)
+    assert line.intercept == 1
 
 
 def test_segment():
@@ -47,19 +63,3 @@ def test_segment():
 
     perp_line = segment.axe
     assert perp_line.isPerpendicular(segment.line)
-
-
-def test_function():
-    # Test external functions
-    p1 = Point(1, 2)
-    p2 = Point(3, 4)
-
-    line = findLine(p1, p2)
-    assert line.slope == sp.Rational(2, 2)
-    assert line.intercept == 1
-
-    distance = sp.sqrt(2)
-    new_points = findPoint(line, p1, distance)
-    assert len(new_points) == 2
-    for p in new_points:
-        assert p.distancePoint(p1) == distance

@@ -6,13 +6,13 @@ from .equations import *
 
 class Point():
     # Represents a point in 2D space, with x and y coordinates.
-    def __init__(self, x, y):
+    def __init__(self, x: int | float | str | sp.Expr | None, y: int | float | str | sp.Expr | None):
         """
         Initializes the Point object with x and y coordinates.
 
         Args:
-            x: The x-coordinate of the point.
-            y: The y-coordinate of the point.
+            x (int | float | str | sp.Expr | None): The x-coordinate of the point.
+            y (int | float | str | sp.Expr | None): The y-coordinate of the point.
         """
         self.x = x
         self.y = y
@@ -76,12 +76,12 @@ class Point():
         """
         return sp.Abs(line.a*self.x + line.b*self.y + line.c) / sp.sqrt(line.a**2 + line.b**2)
 
-    def ison(self, element) -> bool:
+    def ison(self, element: 'Point' | 'Line' | 'Segment') -> bool:
         """
         Determine if the point lies on a given geometric element.
 
         Args:
-            element: The geometric element (Point, Line, or Segment).
+            element (Point | Line | Segment): The geometric element.
 
         Returns:
             bool: True if the point lies on the element.
@@ -99,13 +99,47 @@ class Point():
             max_y = max(element.point1.y, element.point2.y)
             return self.ison(element.line) and (self.x >= min_x and self.x <= max_x) and (self.y >= min_y and self.y <= max_y)
 
+    @staticmethod
+    def findPoint(line: 'Line', point: 'Point', distance: int | float | str | sp.Expr) -> tuple['Point', 'Point | None']:
+        """
+        Find two points on a line at a specific distance from a reference point.
+
+        Args:
+            line (Line): The line on which to find the points.
+            point (Point): The reference point.
+            distance (int | float | str | sp.Expr): The desired distance from the reference point.
+
+        Returns:
+            tuple[Point, Point]: A tuple containing two points at the given distance.
+
+        Raises:
+            ValueError: If there are no possible points at the given distance.
+        """
+        distance = sympy_value(distance, 'distance')
+
+        # Equation of a circle around the reference point
+        circle_eq = sp.Eq((sp.Symbol('x') - point.x)**2 +
+                          (sp.Symbol('y') - point.y)**2, distance**2)
+
+        # Solve for intersection points between the circle and line
+        sol = list(sp.solve([circle_eq, line.equation],
+                            (sp.Symbol('x'), sp.Symbol('y'))))
+
+        if not isinstance(sol[0][0], sp.Expr):
+            raise ValueError(
+                'There is no point at that distance that lies on the line')
+        elif len(sol) == 1:
+            return Point(sol[0][0], sol[0][1]), None
+        else:
+            return Point(sol[0][0], sol[0][1]), Point(sol[1][0], sol[1][1])
+
 
 ORIGIN = Point(sp.Integer(0), sp.Integer(0))
 
 
 class Line():
     # Represents a line in 2D space, defined by an equation.
-    def __init__(self, equation):
+    def __init__(self, equation: str | sp.Equality):
         """
         Initializes the Line object from an equation.
 
@@ -231,7 +265,7 @@ class Line():
         sol = sp.solve([self.equation, line.equation], (x, y))
         return Point(sol[x], sol[y])
 
-    def isAxe(self, segment: 'Segment') -> bool:
+    def isPerpendicularBisector(self, segment: 'Segment') -> bool:
         """
         Check if the line is the axis of a given segment.
 
@@ -241,7 +275,7 @@ class Line():
         Returns:
             bool: True if the line is the axis of the segment.
         """
-        return str(self.equation) == str(segment.axe.equation)
+        return str(self.equation) == str(segment.perpendicularBisector.equation)
 
     def isBisector(self, line1: 'Line', line2: 'Line') -> bool:
         """
@@ -346,63 +380,63 @@ class Line():
         else:
             return Line(sp.Eq(y, solutions[0])) if not self.isVertical() else Line(sp.Eq(x, solutions[0]))
 
+    @staticmethod
+    def findLine(point1: Point | None = None, point2: Point | None = None, slope: int | float | str | sp.Expr | None = None, intercept: int | float | str | sp.Expr | None = None) -> 'Line':
+        """
+        Generate a line based on given parameters.
 
-X_AXE = Line(equation('y = 0'))
-Y_AXE = Line(equation('x = 0'))
+        Args:
+            point1 (Point | None): The first point on the line.
+            point2 (Point | None): The second point on the line.
+            slope (int | float | str | sp.Expr | None): The slope of the line.
+            intercept (int | float | str | sp.Expr | None): The y-intercept of the line.
+
+        Returns:
+            Line: The constructed line object.
+
+        Raises:
+            ValueError: If sufficient parameters are not provided.
+        """
+        is_vertical = False
+
+        # Check if the line is vertical based on the slope or point alignment
+        if slope == sp.oo or (point1 and point2 and point1.x == point2.x):
+            is_vertical = True
+
+        if intercept is not None:
+            intercept = sympy_value(intercept, 'intercept')
+
+        if is_vertical:
+            if point1:
+                return Line(sp.Eq(expression('x'), point1.x))
+            elif point2:
+                return Line(sp.Eq(expression('x'), point2.x))
+            elif intercept is not None:
+                return Line(sp.Eq(expression('x'), intercept))
+            else:
+                raise ValueError(
+                    "One of point1, point2, or intercept must be provided.")
+        else:
+            # Calculate slope or intercept when necessary
+            if point1 and point2:
+                slope = (point2.y - point1.y) / (point2.x - point1.x)
+                intercept = point1.y - slope * point1.x
+            elif point1 and slope is not None:
+                intercept = point1.y - slope * point1.x
+            elif point2 and slope is not None:
+                intercept = point2.y - slope * point2.x
+            elif slope is not None and intercept is not None:
+                pass
+            else:
+                raise ValueError("At least two parameters must be provided.")
+
+        return Line(sp.Eq(expression('y'), slope * expression('x') + intercept))
+
+
+X_AXIS = Line(equation('y = 0'))
+Y_AXIS = Line(equation('x = 0'))
 BISECTOR_1_3 = Line(equation('y = x'))
 BISECTOR_2_4 = Line(equation('y = -x'))
-
-
-def findLine(point1: Point | None = None, point2: Point | None = None, slope=None, intercept=None) -> 'Line':
-    """
-    Generate a line based on given parameters.
-
-    Args:
-        point1 (Point | None): The first point on the line.
-        point2 (Point | None): The second point on the line.
-        slope: The slope of the line.
-        intercept: The y-intercept of the line.
-
-    Returns:
-        Line: The constructed line object.
-
-    Raises:
-        ValueError: If sufficient parameters are not provided.
-    """
-    is_vertical = False
-
-    # Check if the line is vertical based on the slope or point alignment
-    if slope == sp.oo or (point1 and point2 and point1.x == point2.x):
-        is_vertical = True
-
-    if intercept is not None:
-        intercept = sympy_value(intercept, 'intercept')
-
-    if is_vertical:
-        if point1:
-            return Line(sp.Eq(expression('x'), point1.x))
-        elif point2:
-            return Line(sp.Eq(expression('x'), point2.x))
-        elif intercept is not None:
-            return Line(sp.Eq(expression('x'), intercept))
-        else:
-            raise ValueError(
-                "One of point1, point2, or intercept must be provided.")
-    else:
-        # Calculate slope or intercept when necessary
-        if point1 and point2:
-            slope = (point2.y - point1.y) / (point2.x - point1.x)
-            intercept = point1.y - slope * point1.x
-        elif point1 and slope is not None:
-            intercept = point1.y - slope * point1.x
-        elif point2 and slope is not None:
-            intercept = point2.y - slope * point2.x
-        elif slope is not None and intercept is not None:
-            pass
-        else:
-            raise ValueError("At least two parameters must be provided.")
-
-    return Line(sp.Eq(expression('y'), slope * expression('x') + intercept))
 
 
 class Segment:
@@ -422,35 +456,5 @@ class Segment:
         self.length = self.point1.distancePoint(self.point2)
         self.middle = Point((self.point1.x + self.point2.x) / 2,
                             (self.point1.y + self.point2.y) / 2)
-        self.line = findLine(self.point1, self.point2)
-        self.axe = self.line.findPerpendicular(self.middle)
-
-
-def findPoint(line: Line, point: Point, distance) -> tuple[Point, Point]:
-    """
-    Find two points on a line at a specific distance from a reference point.
-
-    Args:
-        line (Line): The line on which to find the points.
-        point (Point): The reference point.
-        distance: The desired distance from the reference point.
-
-    Returns:
-        tuple[Point, Point]: A tuple containing two points at the given distance.
-
-    Raises:
-        ValueError: If the reference point is not on the line.
-    """
-    if point.ison(line):
-        distance = sympy_value(distance, 'distance')
-
-        # Equation of a circle around the reference point
-        circle_eq = sp.Eq((sp.Symbol('x') - point.x)**2 +
-                          (sp.Symbol('y') - point.y)**2, distance**2)
-
-        # Solve for intersection points between the circle and line
-        sol = sp.solve([circle_eq, line.equation],
-                       (sp.Symbol('x'), sp.Symbol('y')))
-        return Point(sol[0][0], sol[0][1]), Point(sol[1][0], sol[1][1])
-    else:
-        raise ValueError("The point must be on the line.")
+        self.line = Line.findLine(self.point1, self.point2)
+        self.perpendicularBisector = self.line.findPerpendicular(self.middle)
