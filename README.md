@@ -24,6 +24,8 @@ pip install mathworld
 
 Alternatively, you can download `MathWorld.zip` from the most recent [Github Release](https://github.com/PinkPantherPC/MathWorld/releases/tag/v0.1.1).
 
+⚠️ **Warning:** Do not download code files directly from the repository, as they are frequently updated. The package might not be functional or properly documented.
+
 ## Acknowledgments
 
 This project makes use of [SymPy](https://www.sympy.org), a Python library for symbolic mathematics.
